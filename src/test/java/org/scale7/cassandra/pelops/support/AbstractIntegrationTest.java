@@ -1,5 +1,7 @@
 package org.scale7.cassandra.pelops.support;
 
+import java.net.ConnectException;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -71,10 +73,7 @@ public abstract class AbstractIntegrationTest {
 		if (cassandraServer == null) {
 			cassandraServer = new EmbeddedCassandraServer();
 			cassandraServer.start();
-
-			// wait until cassandra server starts up. could wait less time, but
-			// 2 seconds to be sure.
-			Thread.sleep(2000);
+			waitForCassandraToStart();
 		}
 
 		colFamilyDefs = columnDefinitions;
@@ -99,6 +98,18 @@ public abstract class AbstractIntegrationTest {
 
 		keyspaceManager.addKeyspace(keyspaceDefinition);
 	}
+
+    private static void waitForCassandraToStart() throws Exception {
+        do {
+            try {
+                new Socket(RPC_LISTEN_ADDRESS, RPC_PORT);
+                return;
+            }
+            catch (ConnectException e) {
+                Thread.sleep(5);
+            }
+        } while (true);
+    }
 
 	/**
 	 * Database prepare before test.
