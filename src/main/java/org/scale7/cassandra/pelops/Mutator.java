@@ -50,6 +50,7 @@ import org.apache.cassandra.thrift.Deletion;
 import org.apache.cassandra.thrift.Mutation;
 import org.apache.cassandra.thrift.SlicePredicate;
 import org.apache.cassandra.thrift.SuperColumn;
+import org.apache.thrift.async.AsyncMethodCallback;
 import org.scale7.cassandra.pelops.exceptions.PelopsException;
 import org.scale7.cassandra.pelops.pool.IThriftPool;
 
@@ -71,6 +72,15 @@ public class Mutator extends Operand {
     public void execute(final ConsistencyLevel cLevel) throws PelopsException {
         execute(cLevel, thrift.getOperandPolicy());
     }
+
+    /**
+     * Execute the mutations that have been specified by sending them to Cassandra in a single batch.
+     * @param cLevel                    The Cassandra consistency level to be used
+     * @throws PelopsException
+     */
+    public void execute(final ConsistencyLevel cLevel, AsyncMethodCallback<batch_mutate_call> callback) throws PelopsException {
+        execute(cLevel, thrift.getOperandPolicy(), callback);
+    }
     
     /**
      * Execute the mutations that have been specified by sending them to Cassandra in a single batch.
@@ -83,7 +93,19 @@ public class Mutator extends Operand {
 
         execute(cLevel, operandPolicy);
     }
+    
+    /**
+     * Execute the mutations that have been specified by sending them to Cassandra in a single batch.
+     * @param cLevel                    The Cassandra consistency level to be used
+     * @param maxOpRetries              The max number of times to attempt to the op before giving up (min 1)
+     * @throws PelopsException
+     */
+    public void execute(final ConsistencyLevel cLevel, int maxOpRetries, AsyncMethodCallback<batch_mutate_call> callback) throws PelopsException {
+        OperandPolicy operandPolicy = thrift.getOperandPolicy().copy().setMaxOpRetries(maxOpRetries);
 
+        execute(cLevel, operandPolicy, callback);
+    }
+    
     /**
      * Execute the mutations that have been specified by sending them to Cassandra in a single batch.
      * @param cLevel                    The Cassandra consistency level to be used
@@ -91,13 +113,31 @@ public class Mutator extends Operand {
      * @throws PelopsException
      */
     public void execute(final ConsistencyLevel cLevel, OperandPolicy operandPolicy) throws PelopsException {
+        BlockingCallback<batch_mutate_call> callback = new BlockingCallback<batch_mutate_call>();
+        execute(cLevel, operandPolicy, callback);
+        try {
+            callback.getResult().getResult();
+        }
+        catch (Exception e) {
+            throw new PelopsException(e);
+        }
+    }
+    
+    /**
+     * Asynchronously execute the mutations that have been specified by sending
+     * them to Cassandra in a single batch.
+     * 
+     * @param cLevel                    The Cassandra consistency level to be used
+     * @param operandPolicy             The policy to use for this operation
+     * @param callback                  The callback to be invoked when the mutations complete
+     * @throws PelopsException
+     */
+    public void execute(final ConsistencyLevel cLevel, OperandPolicy operandPolicy, final AsyncMethodCallback<batch_mutate_call> callback) throws PelopsException {
         IOperation<Void> operation = new IOperation<Void>() {
             @Override
             public Void execute(IThriftPool.IPooledConnection conn) throws Exception {
-                BlockingCallback<batch_mutate_call> batchMutateHandler = new BlockingCallback<batch_mutate_call>();
                 // Send batch mutation job to Thrift connection
-                conn.getAPI().batch_mutate(batch, cLevel, batchMutateHandler);
-                batchMutateHandler.getResult().getResult();
+                conn.getAPI().batch_mutate(batch, cLevel, callback);
                 // Nothing to return
                 return null;
             }
