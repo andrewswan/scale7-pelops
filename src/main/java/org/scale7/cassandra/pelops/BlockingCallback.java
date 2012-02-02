@@ -28,16 +28,40 @@ public class BlockingCallback<C> implements AsyncMethodCallback<C> {
     }
 
     @Override
-    public void onComplete(final C response) {
+    public final void onComplete(final C response) {
         this.response = response;
         latch.countDown();
+        doOnComplete(response);
     }
 
+    /**
+     * Extension point for subclasses to perform custom handling if and when
+     * {@link #onComplete(Object)} is called.
+     * <p>
+     * This implementation does nothing.
+     * 
+     * @param response the response passed to {@link #onComplete(Object)}; might
+     * be <code>null</code>
+     */
+    protected void doOnComplete(C response) {}
+
     @Override
-    public void onError(final Exception exception) {
+    public final void onError(Exception exception) {
         latch.countDown();
         this.exception = exception;
+        doOnError(exception);
     }
+    
+    /**
+     * Extension point for subclasses to perform custom handling if and when
+     * {@link #onError(Exception)} is called.
+     * <p>
+     * This implementation does nothing.
+     * 
+     * @param exception the exception passed to {@link #onError(Exception)}
+     * (never <code>null</code>)
+     */
+    protected void doOnError(Exception exception) {}
     
     /**
      * Blocks until the callback has been invoked.
