@@ -437,11 +437,6 @@
 				<configuration>
 					<!-- Classifier is used to distinguish Andrew's fork -->
 					<classifier>async</classifier>
-					<instructions>
-						<Embed-Dependency>*;scope=compile|runtime</Embed-Dependency>
-						<Embed-Transitive>true</Embed-Transitive>
-						<Import-Package>!*</Import-Package>
-					</instructions>
 				</configuration>
 			</plugin>
 		</plugins>
