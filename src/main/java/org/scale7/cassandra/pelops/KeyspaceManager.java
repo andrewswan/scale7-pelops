@@ -151,7 +151,27 @@ public class KeyspaceManager extends ManagerOperand {
         tryOperation(operation, callback);
     }
 
+    /**
+     * Synchronously drops the given keyspace
+     * 
+     * @param keyspace the name of the keyspace to drop
+     * @return the new schema version
+     * @throws Exception
+     */
     public String dropKeyspace(final String keyspace) throws Exception {
+        BlockingCallback<String> callback = new BlockingCallback<String>();
+        dropKeyspace(keyspace, callback);
+        return callback.getResult();
+    }
+    
+    /**
+     * Asynchronously drops the given keyspace
+     * 
+     * @param keyspace the name of the keyspace to drop
+     * @param callback the callback to receive the new schema version (required)
+     * @throws Exception
+     */
+    public void dropKeyspace(final String keyspace, AsyncMethodCallback<String> callback) throws Exception {
         if (logger.isInfoEnabled()) logger.info("Dropping keyspace '{}'", keyspace);
         IManagerOperation<system_drop_keyspace_call, String> operation = new IManagerOperation<system_drop_keyspace_call, String>() {
 
@@ -165,13 +185,12 @@ public class KeyspaceManager extends ManagerOperand {
             @Override
             public String getResult(system_drop_keyspace_call call)
                     throws Exception {
-                return call.getResult();
+                String newSchemaVersion = call.getResult();
+                if (logger.isInfoEnabled()) logger.info("Dropped keyspace '{}', schema version is now '{}'", keyspace, newSchemaVersion);
+                return newSchemaVersion;
             }
         };
-        String schemaVersion = tryOperation(operation);
-        if (logger.isInfoEnabled()) logger.info("Dropped keyspace '{}', schema version is now '{}'", keyspace, schemaVersion);
-
-        return schemaVersion;
+        tryOperation(operation, callback);
     }
 
     /* - https://issues.apache.org/jira/browse/CASSANDRA-1630
