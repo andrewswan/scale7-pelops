@@ -150,21 +150,39 @@ public class ManagerOperand {
 		ReturnType getResult(Call call) throws Exception;
 	}
 
+	/**
+     * Synchronously executes the given {@link IManagerOperation}.
+     *
+     * @param operation
+     * @return the result
+     * @throws Exception
+     */
 	protected <CallType, ReturnType> ReturnType tryOperation(IManagerOperation<CallType, ReturnType> operation) throws Exception {
-
-		openClient();
-		try {
-		    // Execute operation
-		    BlockingCallback<CallType> callback = new BlockingCallback<CallType>();
-		    operation.execute(connection.getAPI(), callback);
-			ReturnType result = operation.getResult(callback.getResult());
-			// Close client
-			closeClient();
-            // Return result!
-			return result;
-		} catch (Exception e) {
-			closeClient();
-			throw e;
-		}
+	    BlockingCallback<ReturnType> callback = new BlockingCallback<ReturnType>();
+	    tryOperation(operation, callback);
+	    return callback.getResult();
 	}
+
+	/**
+	 * Asynchronously executes the given {@link IManagerOperation}.
+     *
+     * @param operation
+     * @param callback the callback to which to pass the result
+     * @throws Exception
+	 */
+    protected <CallType, ReturnType> void tryOperation(final IManagerOperation<CallType, ReturnType> operation, AsyncMethodCallback<ReturnType> callback) throws Exception {
+        AsyncMethodCallback<CallType> innerCallback = new AbstractConvertingCallback<CallType, ReturnType>(callback) {
+
+            @Override
+            protected ReturnType convert(CallType fromData) throws Exception {
+                try {
+                    return operation.getResult(fromData);
+                } finally {
+                    closeClient();
+                }
+            }
+        };
+        openClient();
+        operation.execute(connection.getAPI(), innerCallback);
+    }
 }

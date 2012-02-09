@@ -110,26 +110,45 @@ public class KeyspaceManager extends ManagerOperand {
 		return tryOperation(operation);
 	}
 
+    /**
+     * Synchronously adds the given keyspace
+     * 
+     * @param keyspaceDefinition the keyspace to add (required)
+     * @return the new schema version
+     * @throws Exception
+     */
     public String addKeyspace(final KsDef keyspaceDefinition) throws Exception {
+        BlockingCallback<String> callback = new BlockingCallback<String>();
+        addKeyspace(keyspaceDefinition, callback);
+        return callback.getResult();
+    }
+    
+    /**
+     * Asynchronously adds the given keyspace
+     * 
+     * @param keyspaceDefinition the keyspace to add (required)
+     * @param callback the callback to which to pass the new schema version (required)
+     * @throws Exception
+     */
+    public void addKeyspace(final KsDef keyspaceDefinition, AsyncMethodCallback<String> callback) throws Exception {
         if (logger.isInfoEnabled()) logger.info("Adding keyspace '{}'", keyspaceDefinition.getName());
         IManagerOperation<system_add_keyspace_call, String> operation = new IManagerOperation<system_add_keyspace_call, String>() {
-
+            
             @Override
             public void execute(AsyncClient conn, AsyncMethodCallback<system_add_keyspace_call> callback)
                     throws Exception {
                 conn.system_add_keyspace(keyspaceDefinition, callback);
             }
-
+            
             @Override
             public String getResult(system_add_keyspace_call call)
                     throws Exception {
-                return call.getResult();
+                String newSchemaVersion = call.getResult();
+                if (logger.isInfoEnabled()) logger.info("Added keyspace '{}', schema version is now '{}'", new Object[] {keyspaceDefinition.getName(), newSchemaVersion});
+                return newSchemaVersion;
             }
         };
-        String schemaVersion = tryOperation(operation);
-        if (logger.isInfoEnabled()) logger.info("Added keyspace '{}', schema version is now '{}'", new Object[] {keyspaceDefinition.getName(), schemaVersion});
-
-        return schemaVersion;
+        tryOperation(operation, callback);
     }
 
     public String dropKeyspace(final String keyspace) throws Exception {
