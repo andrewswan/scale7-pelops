@@ -19,7 +19,7 @@
 			be an absolute path (specified in your settings.xml). -->
 		<scale7.deploy.dir>file://${basedir}/../mvnrepo</scale7.deploy.dir>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<cassandra.version>1.0.7</cassandra.version>
+		<cassandra.version>1.0.8</cassandra.version>
 	</properties>
 	<developers>
 		<developer>
