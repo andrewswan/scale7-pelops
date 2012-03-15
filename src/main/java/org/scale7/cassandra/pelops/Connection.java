@@ -48,21 +48,31 @@ public class Connection implements IConnection {
     private final Cassandra.AsyncClient client;
     private final Cluster.Node node;
     private final String keyspace;
+    private final TAsyncClientManager clientManager;
     private final TNonblockingTransport transport;
     
     public Connection(Cluster.Node node, String keyspace) throws SocketException, TException, InvalidRequestException {
         this.node = node;
         this.keyspace = keyspace;
+        this.clientManager = getTAsyncClientManager();
         
         TProtocolFactory protocolFactory = new TBinaryProtocol.Factory();
         try {
-            TAsyncClientManager clientManager = new TAsyncClientManager();
             Cassandra.AsyncClient.Factory clientFactory = new Cassandra.AsyncClient.Factory(clientManager, protocolFactory);
             this.transport = new TNonblockingSocket(node.getAddress(), node.getConfig().getThriftPort());
             this.client = clientFactory.getAsyncClient(this.transport);
             if (node.getConfig().isTimeoutSet()) {
                 this.client.setTimeout(node.getConfig().getTimeout());
             }
+        }
+        catch (IOException e) {
+            throw new TException(e);
+        }
+    }
+    
+    private TAsyncClientManager getTAsyncClientManager() throws TException {
+        try {
+            return new TAsyncClientManager();
         }
         catch (IOException e) {
             throw new TException(e);
@@ -134,6 +144,7 @@ public class Connection implements IConnection {
     @Override
     public void close() {
         transport.close();
+        clientManager.stop();
     }
 }
 
